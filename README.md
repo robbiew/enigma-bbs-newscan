@@ -154,6 +154,7 @@ From your actual menu configuration, here's how the modules integrate with the m
     }
 }
 ```
+You can also set the Global New Scan to use this mod in your Login menu.
 
 ## ANSI Art Requirements
 
