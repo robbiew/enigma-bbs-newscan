@@ -6,7 +6,7 @@
 
 ## Description
 
-This package provides two complementary modules that enhance ENiGMA½ BBS's newscan functionality:
+This package provides two modules that enhance ENiGMA½ BBS's newscan functionality:
 
 1. **`ja_newscan.js`** - A modularized version of ENiGMA's default newscan functionality that works with the newscan config mod
 2. **`ja_configure_newscan.js`** - A mod that allows users to select which message areas are included in their personal newscan
