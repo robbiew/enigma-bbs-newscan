@@ -196,7 +196,7 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
             const newscanArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
 
-            // Define exact column positions and widths to match your art
+            // Define exact column positions and widths to match the art
             const layout = {
                 indicator: { start: 0, width: 1 },
                 conference: { start: 2, width: 8 },
