@@ -17,9 +17,10 @@ Together, these modules provide a complete, user-configurable newscan system tha
 ## Features
 
 ### New Scan Module (`ja_newscan.js`)
-- Modular version of ENiGMA's built-in newscan functionality
+- Adapted from ENiGMA's core newscan functionality
 - Scans message conferences and file base areas for new content
 - Integration with user newscan area preferences
+- Add delay to scan message, pause when done
 
 ### Newscan Configuration (`ja_configure_newscan.js`)
 - Interactive selection of message areas for newscan
