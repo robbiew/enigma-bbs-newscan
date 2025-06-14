@@ -1,5 +1,6 @@
 # Newscan Modules for ENiGMA½ BBS
 
+[![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![ENiGMA½ Version](https://img.shields.io/badge/enigma-1%2F2-brightgreen.svg)](https://github.com/NuSkooler/enigma-bbs)
 
 ![Newscan Configuration Screenshot](assets/screenshot.png)
@@ -34,20 +35,21 @@ Together, these modules provide a complete, user-configurable newscan system tha
 
 ### Installation
 
-1. Navigate to your ENiGMA½ installation directory:
+1. Clone this repository to a temporary location:
    ```bash
-   cd /path/to/your/enigma-bbs
+   git clone https://github.com/[username]/ja-newscan-modules.git
+   cd ja-newscan-modules
    ```
 
-2. Clone this package into the mods directory:
+2. Copy the modules to your ENiGMA½ mods directory:
    ```bash
-   git clone https://github.com/[username]/ja-newscan-modules.git mods/ja_newscan_modules
+   cp -r mods/ja_newscan /path/to/your/enigma-bbs/mods/
+   cp -r mods/ja_configure_newscan /path/to/your/enigma-bbs/mods/
    ```
 
-3. Copy the modules to their proper locations:
+3. Copy the art file to your theme's art directory:
    ```bash
-   cp mods/ja_newscan_modules/ja_newscan.js mods/
-   cp mods/ja_newscan_modules/ja_configure_newscan.js mods/ja_configure_newscan/
+   cp art/CNEWSCAN.ANS /path/to/your/enigma-bbs/art/themes/[your-theme]/
    ```
 
 ## Configuration
