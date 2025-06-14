@@ -23,11 +23,7 @@ exports.moduleInfo = {
 };
 
 /*
- * :TODO:
- * * User configurable new scan: Area selection (avail from messages area) (sep module)
- * * Add status TL/VM (either/both should update if present)
- * *
-
+ * * Adapted from original NewScan module to add user configurable newscan areas
 */
 
 const MciCodeIds = {
@@ -55,12 +51,17 @@ exports.getModule = class NewScanModule extends MenuModule {
         //  :TODO: Use newer custom info format - TL10+
         const config = this.menuConfig.config;
         this.scanStartFmt = config.scanStartFmt || 'Scanning {confName} - {areaName}...';
-        this.scanFinishNoneFmt = config.scanFinishNoneFmt || 'Nothing new';
+        this.scanFinishNoneFmt = config.scanFinishNoneFmt || 'Nothing new in {confName} - {areaName}';
         this.scanFinishNewFmt = config.scanFinishNewFmt || '{count} entries found';
-        this.scanCompleteMsg = config.scanCompleteMsg || 'Finished newscan';
+        this.scanCompleteMsg = config.scanCompleteMsg || 'Finished newscan - Press any key to continue';
     }
 
     updateScanStatus(statusText) {
+        // Clear the status area first by padding with spaces
+        const clearLine = ' '.repeat(80); // Use a reasonable line width
+        this.setViewText('allViews', MciCodeIds.ScanStatusLabel, clearLine);
+        this.setViewText('allViews', MciCodeIds.ScanStatusList, clearLine);
+        // Then set the new status
         this.setViewText('allViews', MciCodeIds.ScanStatusLabel, statusText);
     }
 
@@ -191,7 +192,17 @@ exports.getModule = class NewScanModule extends MenuModule {
                 },
                 function displayMessageList(newMessageCount) {
                     if (newMessageCount <= 0) {
-                        return self.newScanMessageArea(conf, cb); //  next area, if any
+                        self.updateScanStatus(
+                            stringFormat(self.scanFinishNoneFmt, {
+                                confName: conf.conf.name,
+                                areaName: currentArea.area.name
+                            })
+                        );
+                        // Add a very brief pause before moving to next area
+                        setTimeout(() => {
+                            self.newScanMessageArea(conf, cb);
+                        }, 100); // 0.1 second pause
+                        return;
                     }
 
                     const nextModuleOpts = {
@@ -274,7 +285,11 @@ exports.getModule = class NewScanModule extends MenuModule {
             case Steps.FileBase:
                 this.newScanFileBase(() => {
                     this.currentStep = Steps.Finished;
-                    return this.performScanCurrentStep(cb);
+                    this.updateScanStatus(this.scanCompleteMsg);
+                    // Wait for key press before finishing
+                    this.client.once('key press', () => {
+                        return this.performScanCurrentStep(cb);
+                    });
                 });
                 break;
 
