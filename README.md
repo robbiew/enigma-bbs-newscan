@@ -159,7 +159,9 @@ From your actual menu configuration, here's how the modules integrate with the m
 
 ### Configuration Art (`CNEWSCAN.ANS`)
 
-Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory.
+- Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory.
+- Note, the js_newscan mod re-uses the core newscan art (NEWSCAN.ANS) so no need to change that.
+
 
 ## File Structure
 
