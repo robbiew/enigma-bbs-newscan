@@ -157,7 +157,7 @@ From your actual menu configuration, here's how the modules integrate with the m
 
 ## ANSI Art Requirements
 
-### Configuration Art (`CNEWSCAN.ans`)
+### Configuration Art (`CNEWSCAN.ANS`)
 
 Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory.
 
