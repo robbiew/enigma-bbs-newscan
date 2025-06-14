@@ -17,16 +17,18 @@ const _ = require('lodash');
 const async = require('async');
 
 exports.moduleInfo = {
-    name: 'New Scan for Congifured Message Areas',
-    desc: 'Performs a new scan against configured message areas of the system',
-    author: 'j0hnny a1pha',
+    name: 'New Scan',
+    desc: 'Performs a new scan against various areas of the system',
+    author: 'NuSkooler',
 };
 
 /*
-** This is a modified version of the core newscan module that supports the
-** ja_newscan module configuration. Does not support file areas configurations.
-*/
+ * :TODO:
+ * * User configurable new scan: Area selection (avail from messages area) (sep module)
+ * * Add status TL/VM (either/both should update if present)
+ * *
 
+*/
 
 const MciCodeIds = {
     ScanStatusLabel: 1, //  TL1

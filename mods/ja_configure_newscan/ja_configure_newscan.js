@@ -12,7 +12,8 @@ const async = require('async');
 exports.moduleInfo = {
     name: 'Configure Newscan Areas',
     desc: 'Allow users to configure which message areas are scanned by Newscan',
-    author: 'j0hnny a1pha',
+    author: 'YourName',
+    packageName: 'com.yourname.bbs.configure-newscan',
 };
 
 exports.getModule = class ConfigureNewscanModule extends MenuModule {
