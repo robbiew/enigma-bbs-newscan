@@ -20,12 +20,14 @@ Together, these modules provide a complete, user-configurable newscan system tha
 - Adapted from ENiGMA's core newscan functionality
 - Scans message conferences and file base areas for new content
 - Integration with user newscan area preferences
-- Add delay to scan message, pause when done
 
 ### Newscan Configuration (`ja_configure_newscan.js`)
 - Interactive selection of message areas for newscan
 - Toggle areas on/off with simple key presses
-- Persistent storage of user preferences
+- **Press 'A' to toggle all areas on or off**
+- Persistent storage of user preferences (**immediate save on every change**)
+- **Real-time status updates** (e.g., "Selected X of Y areas for newscan")
+- **Skips `system_internal` conference in area selection**
 
 ## Prerequisites
 
@@ -116,6 +118,12 @@ Add the configuration module to your menu system:
                             "escape"
                         ]
                         action: "@method:done"
+                    },
+                    {
+                        keys: [
+                            "A", "a"
+                        ]
+                        action: "@method:toggleAllAreas"
                     }
                 ]
             }
@@ -123,6 +131,8 @@ Add the configuration module to your menu system:
     }
 }
 ```
+
+- **Note:** The configuration UI is tightly coupled to the provided ANSI art layout; if you change the art, you may need to adjust the code's column/row settings.
 
 ### Integration with Message Base Menu
 
@@ -162,8 +172,6 @@ You can also set the Global New Scan to use this mod in your Login menu.
 ### Configuration Art (`CNEWSCAN.ANS`)
 
 - Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory.
-- Note, the js_newscan mod re-uses the core newscan art (NEWSCAN.ANS) so no need to change that.
-
 
 ## File Structure
 
@@ -184,7 +192,7 @@ art/
 Both modules work together through ENiGMA½'s user property system:
 
 ```javascript
-// Configure module saves user preferences
+// Configure module saves user preferences (immediately, on every change)
 this.client.user.persistProperty('NewScanMessageAreaTags', newNewscanTags, callback);
 
 // New scan module reads user preferences
@@ -195,8 +203,20 @@ if (userSelectedAreas.includes(areaTag)) {
     // Include this area in the scan
 }
 ```
+- **If no areas are selected, the newscan module will scan all available areas by default.**
+
+## Usage Notes
+
+- The configuration UI is tightly coupled to the provided ANSI art layout; if you change the art, you may need to adjust the code's column/row settings.
+- Debug logging is available for troubleshooting area selection and persistence.
 
 ## Changelog
+
+### Version 1.1.0
+- Improved configuration UI with real-time feedback and toggle-all support (press 'A')
+- Skips `system_internal` conference in configuration
+- Immediate persistence of user selections
+- Debug logging for troubleshooting
 
 ### Version 1.0.0
 - Initial release

@@ -35,6 +35,10 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             selectArea: (formData, extraArgs, cb) => {
                 this.toggleCurrentArea();
                 return cb(null);
+            },
+            toggleAllAreas: (formData, extraArgs, cb) => {
+                this.toggleAllAreas();
+                return cb(null);
             }
         };
     }
@@ -92,8 +96,27 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
         });
     }
 
+    onKeyPress(ch, key) {
+        // Erase the status message line (row 4, col 40)
+        this.client.term.write('\x1b[4;40H\x1b[K');
+        // Handle 'A' or 'a' for toggle all
+        if (ch && (ch === 'A' || ch === 'a')) {
+            this.toggleAllAreas();
+            return;
+        }
+        // Pass to focused view (vertical menu)
+        const vm1 = this.viewControllers.main.getView(1);
+        if (vm1 && vm1.acceptsInput) {
+            vm1.onKeyPress(ch, key);
+        } else {
+            super.onKeyPress(ch, key);
+        }
+    }
+
     toggleCurrentArea() {
         try {
+            // Erase the status message line (row 4, col 40)
+            this.client.term.write('\x1b[4;40H\x1b[K');
             if (this.currentIndex >= this.availableAreas.length) return;
 
             const area = this.availableAreas[this.currentIndex];
@@ -149,6 +172,52 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
         }
     }
 
+    toggleAllAreas() {
+        try {
+            const allTags = this.availableAreas.map(area => area.areaTag);
+            let newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
+            let areaTagsArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
+
+            // If all selected, clear all; else, select all
+            let selectAll = areaTagsArray.length !== allTags.length;
+            areaTagsArray = selectAll ? allTags.slice() : [];
+
+            // Save the updated newscan tags to memory
+            this.client.user.properties['NewScanMessageAreaTags'] = areaTagsArray.join(',');
+
+            // Persist the property to database immediately
+            this.client.user.persistProperty('NewScanMessageAreaTags', areaTagsArray.join(','), (err) => {
+                if (err) {
+                    this.client.log.error({ error: err.message }, 'Failed to persist NewScanMessageAreaTags');
+                } else {
+                    this.client.log.debug('NewScanMessageAreaTags toggled for all areas');
+                }
+            });
+
+            // Update the internal data so it persists when VM1 redraws
+            this.updateAreaListObjects();
+
+            // Update VM1's internal item data and force redraw
+            const vm1 = this.viewControllers.main.getView(1);
+            if (vm1) {
+                // Set new items so asterisks and text update
+                vm1.setItems(this.availableAreas.map((area, index) => ({
+                    text: area.text,
+                    data: index
+                })));
+                vm1.invalidateRenderCache();
+                vm1.redraw();
+            }
+
+            this.updateStatus();
+
+            // Show a status message
+            this.client.term.write(`\x1b[4;40H\x1b[33mNewscan ${selectAll ? 'enabled' : 'disabled'} for all areas\x1b[K\x1b[0m`);
+        } catch (error) {
+            this.client.log.error({ error: error.message }, 'Error in toggleAllAreas');
+        }
+    }
+
     loadAvailableAreas(cb) {
         try {
             this.availableAreas = [];
@@ -197,26 +266,24 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
             const newscanArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
 
-            // Define exact column positions and widths to match the art
+            // Define exact column positions and widths to match your art
             const layout = {
                 indicator: { start: 0, width: 1 },
-                conference: { start: 2, width: 8 },
-                areaName: { start: 10, width: 22 },
-                description: { start: 35, width: 37 }
+                conference: { start: 2, width: 12 },
+                areaName: { start: 15, width: 48 }
             };
 
             this.availableAreas.forEach((area, index) => {
                 const isSelected = newscanArray.includes(area.areaTag);
 
                 // Create a fixed-width string buffer
-                const lineLength = layout.description.start + layout.description.width;
+                const lineLength = layout.areaName.start + layout.areaName.width;
                 let line = ' '.repeat(lineLength);
 
                 // Position each field at exact columns
                 line = this.placeTextAtPosition(line, isSelected ? '*' : ' ', layout.indicator.start, layout.indicator.width);
                 line = this.placeTextAtPosition(line, area.confName || area.confTag || '', layout.conference.start, layout.conference.width);
                 line = this.placeTextAtPosition(line, area.name || area.areaTag, layout.areaName.start, layout.areaName.width);
-                line = this.placeTextAtPosition(line, area.desc || '', layout.description.start, layout.description.width);
 
                 area.text = line;
             });
