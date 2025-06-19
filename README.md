@@ -171,7 +171,7 @@ You can also set the Global New Scan to use this mod in your Login menu.
 
 ### Configuration Art (`CNEWSCAN.ANS`)
 
-- Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory.
+- Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory. Or, make your own!
 
 ## File Structure
 
