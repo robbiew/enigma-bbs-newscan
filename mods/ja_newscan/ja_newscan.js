@@ -57,12 +57,14 @@ exports.getModule = class NewScanModule extends MenuModule {
     }
 
     updateScanStatus(statusText) {
-        // Clear the status area first by padding with spaces
-        const clearLine = ' '.repeat(80); // Use a reasonable line width
+        // Only clear and write up to 77 columns to avoid overwriting the right border
+        const maxWidth = 77;
+        const clearLine = ' '.repeat(maxWidth);
         this.setViewText('allViews', MciCodeIds.ScanStatusLabel, clearLine);
         this.setViewText('allViews', MciCodeIds.ScanStatusList, clearLine);
-        // Then set the new status
-        this.setViewText('allViews', MciCodeIds.ScanStatusLabel, statusText);
+        // Truncate or pad the status text to maxWidth
+        const safeStatus = (statusText || '').padEnd(maxWidth).slice(0, maxWidth);
+        this.setViewText('allViews', MciCodeIds.ScanStatusLabel, safeStatus);
     }
 
     newScanMessageConference(cb) {
