@@ -211,11 +211,15 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
 
             this.updateStatus();
 
-            // Show a status message, up to 77 columns
-            const maxWidth = 77;
+            // Show a status message, up to 36 columns at col 45
+            const startRow = 4;
+            const startCol = 40;
+            const width = 35;
             let statusMsg = `Newscan ${selectAll ? 'enabled' : 'disabled'} for all areas`;
-            statusMsg = statusMsg.padEnd(maxWidth).slice(0, maxWidth);
-            this.client.term.write(`\x1b[4;40H\x1b[33m${statusMsg}\x1b[K\x1b[0m`);
+            statusMsg = statusMsg.padEnd(width).slice(0, width);
+            // Clear only the status area, then write the message (no \x1b[K)
+            this.client.term.write(`\x1b[${startRow};${startCol}H${' '.repeat(width)}`);
+            this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[33m${statusMsg}\x1b[0m`);
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in toggleAllAreas');
         }
@@ -322,11 +326,15 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
         try {
             const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
             const newscanArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
-            // Update status in top area (single line only), up to 77 columns
-            const maxWidth = 77;
+            // Update status in top area (single line only), up to 36 columns at col 35
+            const startRow = 3;
+            const startCol = 40;
+            const width = 35;
             let statusMsg = `Selected ${newscanArray.length} of ${this.availableAreas.length} areas for newscan`;
-            statusMsg = statusMsg.padEnd(maxWidth).slice(0, maxWidth);
-            this.client.term.write(`\x1b[3;40H\x1b[32m${statusMsg}\x1b[K\x1b[0m`);
+            statusMsg = statusMsg.padEnd(width).slice(0, width);
+            // Clear only the status area, then write the message (no \x1b[K)
+            this.client.term.write(`\x1b[${startRow};${startCol}H${' '.repeat(width)}`);
+            this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[32m${statusMsg}\x1b[0m`);
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in updateStatus');
         }
