@@ -9,6 +9,11 @@ const messageArea = require('../../core/message_area.js');
 // deps
 const async = require('async');
 
+// Helper to clear the status area only
+function clearStatusArea(term, row = 3, col = 40, width = 35) {
+    term.write(`\x1b[${row};${col}H${' '.repeat(width)}`);
+}
+
 exports.moduleInfo = {
     name: 'Configure Newscan Areas',
     desc: 'Allow users to configure which message areas are scanned by Newscan',
@@ -97,8 +102,8 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
     }
 
     onKeyPress(ch, key) {
-        // Erase the status message line (row 4, col 40)
-        this.client.term.write('\x1b[4;40H\x1b[K');
+        // Erase the status message line (row 4, col 40) -- use precise area clearing
+        clearStatusArea(this.client.term, 4, 40, 35);
         // Handle 'A' or 'a' for toggle all
         if (ch && (ch === 'A' || ch === 'a')) {
             this.toggleAllAreas();
@@ -115,8 +120,8 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
 
     toggleCurrentArea() {
         try {
-            // Erase the status message line (row 4, col 40)
-            this.client.term.write('\x1b[4;40H\x1b[K');
+            // Erase the status message line (row 4, col 40) -- use precise area clearing
+            clearStatusArea(this.client.term, 4, 40, 35);
             if (this.currentIndex >= this.availableAreas.length) return;
 
             const area = this.availableAreas[this.currentIndex];
@@ -211,15 +216,16 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
 
             this.updateStatus();
 
-            // Show a status message, up to 36 columns at col 45
+            // Show a status message, up to 35 columns at col 40
             const startRow = 4;
             const startCol = 40;
             const width = 35;
             let statusMsg = `Newscan ${selectAll ? 'enabled' : 'disabled'} for all areas`;
             statusMsg = statusMsg.padEnd(width).slice(0, width);
-            // Clear only the status area, then write the message (no \x1b[K)
-            this.client.term.write(`\x1b[${startRow};${startCol}H${' '.repeat(width)}`);
-            this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[33m${statusMsg}\x1b[0m`);
+            clearStatusArea(this.client.term, startRow, startCol, width);
+            if (statusMsg.trim().length > 0) {
+                this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[33m${statusMsg}\x1b[0m`);
+            }
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in toggleAllAreas');
         }
@@ -326,15 +332,17 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
         try {
             const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
             const newscanArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
-            // Update status in top area (single line only), up to 36 columns at col 35
+            // Update status in top area (single line only), up to 35 columns at col 40
             const startRow = 3;
             const startCol = 40;
             const width = 35;
             let statusMsg = `Selected ${newscanArray.length} of ${this.availableAreas.length} areas for newscan`;
             statusMsg = statusMsg.padEnd(width).slice(0, width);
             // Clear only the status area, then write the message (no \x1b[K)
-            this.client.term.write(`\x1b[${startRow};${startCol}H${' '.repeat(width)}`);
-            this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[32m${statusMsg}\x1b[0m`);
+            clearStatusArea(this.client.term, startRow, startCol, width);
+            if (statusMsg.trim().length > 0) {
+                this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[32m${statusMsg}\x1b[0m`);
+            }
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in updateStatus');
         }
