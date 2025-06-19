@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![ENiGMA½ Version](https://img.shields.io/badge/enigma-1%2F2-brightgreen.svg)](https://github.com/NuSkooler/enigma-bbs)
 
-![Newscan Configuration Screenshot](assets/screenshot.png)
+![Newscan Configuration Screenshot](assets/screenshot_git.png)
 
 ## Description
 
