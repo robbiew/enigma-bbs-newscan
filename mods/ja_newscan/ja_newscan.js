@@ -214,7 +214,7 @@ exports.getModule = class NewScanModule extends MenuModule {
                     };
 
                     return self.gotoMenu(
-                        self.menuConfig.config.newScanMessageList || 'newScanMessageList',
+                        self.menuConfig.config.messageListMenu || 'newScanMessageList',
                         nextModuleOpts
                     );
                 },

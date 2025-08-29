@@ -1,181 +1,364 @@
-# Newscan Modules for ENiGMA½ BBS
+# ENiGMA½ Enhanced Newscan Mods
 
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![ENiGMA½ Version](https://img.shields.io/badge/enigma-1%2F2-brightgreen.svg)](https://github.com/NuSkooler/enigma-bbs)
 
 ![Newscan Configuration Screenshot](assets/screenshot_git.png)
 
-## Description
-
-This package provides two modules that enhance ENiGMA½ BBS's newscan functionality:
-
-1. **`ja_newscan.js`** - A modularized version of ENiGMA's default newscan functionality that works with the newscan config mod
-2. **`ja_configure_newscan.js`** - A mod that allows users to select which message areas are included in their personal newscan
-
-Together, these modules provide a complete, user-configurable newscan system that integrates seamlessly with ENiGMA½'s existing message area infrastructure while giving users control over their newscan experience.
+A collection of three integrated modules that enhance the ENiGMA½ newscan experience by adding user configuration, visual feedback, and improved workflow.
 
 ## Features
 
-### New Scan Module (`ja_newscan.js`)
-- Adapted from ENiGMA's core newscan functionality
-- Scans message conferences and file base areas for new content
-- Integration with user newscan area preferences
+- **Configurable Areas**: Users can select which message areas to include in their newscan
+- **Visual Feedback**: Clear confirmation when marking all messages as read
+- **Auto-Advance**: Automatically continues to next area after marking messages as read
+- **Login Integration**: Optional automatic newscan prompt during login sequence
+- **Seamless Integration**: Follows all ENiGMA½ patterns and conventions
 
-### Newscan Configuration (`ja_configure_newscan.js`)
-- Interactive selection of message areas for newscan
-- Toggle areas on/off with simple key presses
-- **Press 'A' to toggle all areas on or off**
-- Persistent storage of user preferences (**immediate save on every change**)
-- **Real-time status updates** (e.g., "Selected X of Y areas for newscan")
-- **Skips `system_internal` conference in area selection**
+## Modules Included
 
-## Prerequisites
-
-- ENiGMA½ BBS installed and configured
-- Existing message areas configured in your BBS
+1. **`ja_configure_newscan`** - Interactive configuration interface for selecting newscan areas
+2. **`ja_newscan`** - Enhanced newscan execution with user-selected area filtering  
+3. **`ja_newscan_msg_list`** - Enhanced message list with visual feedback and auto-advance
 
 ## Installation
 
-### Installation
+### 1. Copy Module Files
 
-1. Clone this repository to a temporary location:
-   ```bash
-   git clone https://github.com/[username]/ja-newscan-modules.git
-   cd ja-newscan-modules
-   ```
+Copy the three module directories to your ENiGMA½ `mods/` directory:
 
-2. Copy the modules to your ENiGMA½ mods directory:
-   ```bash
-   cp -r mods/ja_newscan /path/to/your/enigma-bbs/mods/
-   cp -r mods/ja_configure_newscan /path/to/your/enigma-bbs/mods/
-   ```
-
-3. Copy the art file to your theme's art directory:
-   ```bash
-   cp art/CNEWSCAN.ANS /path/to/your/enigma-bbs/art/themes/[your-theme]/
-   ```
-
-## Configuration
-
-### New Scan Module Configuration
-
-Add the new scan module to your menu configuration:
-
-```hjson
-{
-    jaNewScan: {
-        desc: "New Scan"
-        module: "@userModule:ja_newscan"
-        art: "NEWSCAN"
-        config: {
-            messageListMenu: "newScanMessageList"
-        }
-    }
-}
+```
+enigma-bbs/
+└── mods/
+    ├── ja_configure_newscan/
+    │   └── ja_configure_newscan.js
+    ├── ja_newscan/
+    │   └── ja_newscan.js
+    └── ja_newscan_msg_list/
+        └── ja_newscan_msg_list.js
 ```
 
-### Newscan Configuration Module
+### 2. Update Menu Configuration
 
-Add the configuration module to your menu system:
+Add these menu entries to your message base menu configuration file (e.g., `config/menus/your-theme-message_base.hjson`):
 
 ```hjson
 {
-    jaConfigureNewScan: {
-        desc: "Configure Newscan Areas"
-        module: "@userModule:ja_configure_newscan"
-        art: "CNEWSCAN"
-        config: {
-            cls: true
+  "menus": {
+    // Add to your message base menu
+    "messageBaseMainMenu": {
+      // ... existing menu config ...
+      "submit": [
+        // ... existing submit actions ...
+        {
+          "value": {
+            "command": "N"
+          },
+          "action": "@menu:jaNewScan"
+        },
+        {
+          "value": {
+            "command": "Z"
+          },
+          "action": "@menu:jaConfigureNewScan"
         }
-        form: {
-            0: {
-                mci: {
-                    VM1: {
-                        focus: true
-                        submit: true
-                        argName: "messageIndex"
-                        height: 12
-                        width: 65
-                        row: 6
-                        col: 5
-                        itemFormat: "|16|03{text}"
-                        focusItemFormat: "|19|15{text}"
-                    }
-                }
-                submit: {
-                    "*": [
-                        {
-                            value: {
-                                messageIndex: null
-                            }
-                            action: "@method:selectArea"
-                        }
-                    ]
-                }
-                actionKeys: [
-                    {
-                        keys: [
-                            "escape"
-                        ]
-                        action: "@method:done"
-                    },
-                    {
-                        keys: [
-                            "A", "a"
-                        ]
-                        action: "@method:toggleAllAreas"
-                    }
-                ]
+        // ... other submit actions ...
+      ]
+    },
+
+    // Add these new menu definitions
+    "jaNewScan": {
+      "desc": "New Scan",
+      "module": "@userModule:ja_newscan",
+      "art": "NEWSCAN",
+      "config": {
+        "messageListMenu": "newScanMessageList"
+      }
+    },
+
+    "jaConfigureNewScan": {
+      "desc": "Configure Newscan Areas",
+      "module": "@userModule:ja_configure_newscan",
+      "art": "CNEWSCAN",
+      "config": {
+        "cls": true
+      },
+      "form": {
+        "0": {
+          "mci": {
+            "VM1": {
+              "focus": true,
+              "submit": true,
+              "argName": "messageIndex",
+              "height": 12,
+              "width": 65,
+              "itemFormat": "|16|03{text}",
+              "focusItemFormat": "|19|15{text}"
             }
-        }
-    }
-}
-```
-
-- **Note:** The configuration UI is tightly coupled to the provided ANSI art layout; if you change the art, you may need to adjust the code's column/row settings.
-
-### Integration with Message Base Menu
-
-From your actual menu configuration, here's how the modules integrate with the message base menu:
-
-```hjson
-{
-    messageBaseMainMenu: {
-        desc: "Message Menu"
-        art: "MSGMNU"
-        prompt: "messageBaseMenuPrompt"
-        config: {
-            interrupt: "realtime"
-        }
-        submit: [
-            // ... other menu options ...
+          },
+          "submit": {
+            "*": [
+              {
+                "value": {
+                  "messageIndex": null
+                },
+                "action": "@method:selectArea"
+              }
+            ]
+          },
+          "actionKeys": [
             {
-                value: {
-                    command: "!"
-                }
-                action: "@menu:jaNewScan"
-            }
+              "keys": ["escape"],
+              "action": "@method:done"
+            },
             {
-                value: {
-                    command: "Z"
-                }
-                action: "@menu:jaConfigureNewScan"
+              "keys": ["a", "shift + a"],
+              "action": "@method:toggleAllAreas"
             }
-        ]
+          ]
+        }
+      }
     }
+  }
 }
 ```
-You can also set the Global New Scan to use this mod in your Login menu.
 
-## ANSI Art Requirements
+### 3. Update Login Menu Configuration
 
-### Configuration Art (`CNEWSCAN.ANS`)
+#### Login Sequence Newscan Integration (Optional but Recommended)
 
-- Copy the provided `CNEWSCAN.ANS` file from the `art/` directory to your ENiGMA½ art directory. Or, make your own!
+To integrate newscan into your login sequence so users are prompted automatically after login, add these entries to your login menu configuration file (e.g., `config/menus/your-theme-login.hjson`):
+
+```hjson
+{
+  "menus": {
+    // Update your onelinerz menu to conditionally show newscan prompt
+    "fullLoginSequenceOnelinerz": {
+      "desc": "Onelinerz",
+      "module": "onelinerz",
+      "next": [
+        {
+          // Users with 2+ calls get newscan prompt
+          "acs": "NC2",
+          "next": "fullLoginSequenceNewScanConfirm"
+        },
+        {
+          // New users skip newscan
+          "next": "fullLoginSequenceUserStats"
+        }
+      ]
+      // ... rest of your onelinerz config ...
+    },
+
+    // Add newscan prompt menu
+    "fullLoginSequenceNewScanConfirm": {
+      "desc": "Logging In",
+      "prompt": "loginGlobalNewScan",
+      "submit": [
+        {
+          "value": {
+            "promptValue": 0
+          },
+          "action": "@menu:fullLoginSequenceNewScan"
+        },
+        {
+          "value": {
+            "promptValue": 1
+          },
+          "action": "@menu:fullLoginSequenceUserStats"
+        }
+      ]
+    },
+
+    // Add newscan execution menu for login sequence
+    "fullLoginSequenceNewScan": {
+      "desc": "New Scan",
+      "module": "@userModule:ja_newscan",
+      "art": "NEWSCAN",
+      "next": "fullLoginSequenceSysStats",
+      "config": {
+        "messageListMenu": "newScanMessageList"
+      }
+    },
+
+    // Enhanced message list (used by both login and manual newscan)
+    "newScanMessageList": {
+      "desc": "New Message List",
+      "module": "@userModule:ja_newscan_msg_list",
+      "art": "NEWMSGS",
+      "config": {
+        "menuViewPost": "messageAreaViewPost"
+      },
+      "form": {
+        "0": {
+          "mci": {
+            "VM1": {
+              "focus": true,
+              "submit": true,
+              "argName": "messageIndex"
+            },
+            "TL6": {}
+          },
+          "submit": {
+            "*": [
+              {
+                "value": {
+                  "messageIndex": null
+                },
+                "action": "@method:selectMessage"
+              }
+            ]
+          },
+          "actionKeys": [
+            {
+              "keys": ["escape", "q", "shift + q"],
+              "action": "@systemMethod:prevMenu"
+            },
+            {
+              "keys": ["x", "shift + x"],
+              "action": "@method:fullExit"
+            },
+            {
+              "keys": ["m", "shift + m"],
+              "action": "@method:markAllRead"
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  // Add the newscan prompt
+  "prompts": {
+    "loginGlobalNewScan": {
+      "art": "GNSPMPT",
+      "mci": {
+        "TM1": {
+          "argName": "promptValue",
+          "items": [
+            "yes",
+            "no"
+          ],
+          "focus": true,
+          "hotKeys": {
+            "Y": 0,
+            "N": 1
+          },
+          "hotKeySubmit": true
+        }
+      }
+    }
+  }
+}
+```
+
+#### Minimal Configuration (Message List Only)
+
+If you don't want login sequence integration and only want manual newscan, just update the `newScanMessageList` menu:
+
+```hjson
+{
+  "menus": {
+    "newScanMessageList": {
+      "desc": "New Message List",
+      "module": "@userModule:ja_newscan_msg_list",
+      "art": "NEWMSGS",
+      "config": {
+        "menuViewPost": "messageAreaViewPost"
+      }
+      // ... rest of form config from above example ...
+    }
+  }
+}
+```
+
+### 4. Update Art Files
+
+#### Required: NEWMSGS Art File
+Add the following MCI code to your NEWMSGS art file where you want the "All Messages marked as read" status message to appear:
+
+```
+%TL99
+```
+
+Position this MCI code in your art file where you want the status message to display (e.g., at the bottom of the screen or in a dedicated status area).
+
+#### Optional: Additional Art Files
+You may want to create or customize these art files:
+- `NEWSCAN` - Main newscan display
+- `CNEWSCAN` - Configuration interface display
+- `GNSPMPT` - Login sequence newscan prompt ("Do you want to scan for new messages?")
+
+## Usage
+
+### For Users
+
+1. **Login Sequence**: After logging in (users with 2+ calls):
+   - System prompts "Do you want to scan for new messages?"
+   - Press `Y` for yes, `N` for no
+   - If yes, newscan runs automatically with enhanced features
+
+2. **Manual Newscan**: Press `N` in the message menu to run newscan
+   - Only configured areas will be scanned (or all if none configured)
+   - Press `M` to mark all messages in current area as read
+   - Newscan automatically advances to next area with new messages
+
+3. **Configure Areas**: Press `Z` in the message menu to configure which areas to scan
+   - Use arrow keys to navigate areas
+   - Press Enter to toggle area selection
+   - Press `A` to toggle all areas
+   - Press Escape when done
+
+### Key Bindings
+
+**Configuration Interface:**
+- `↑/↓` - Navigate areas
+- `Enter` - Toggle area selection
+- `A` - Toggle all areas
+- `Escape` - Done/Exit
+
+**Newscan Message List:**
+- `↑/↓` - Navigate messages  
+- `Enter` - Read message
+- `M` - Mark all as read (with auto-advance)
+- `Q/Escape` - Back to newscan
+- `X` - Exit newscan completely
+
+## Technical Details
+
+### Data Storage
+User area selections are stored in the `NewScanMessageAreaTags` user property as a comma-separated string of area tags.
+
+### Module Dependencies
+- All modules use only ENiGMA½ core APIs
+- No external dependencies required
+- Compatible with standard ENiGMA½ installations
+
+### ACS Integration
+- Respects all ENiGMA½ Access Control System (ACS) settings
+- Only shows areas users have access to
+- Maintains security boundaries
+
+## Troubleshooting
+
+### Module Not Loading
+- Ensure module files are in correct directories under `mods/`
+- Check ENiGMA½ logs for module loading errors
+- Verify menu configuration syntax is valid HJSON
+
+### Art Display Issues  
+- Ensure `%TL99` MCI code is added to NEWMSGS art file
+- Check art file paths in menu configuration
+- Verify art files exist and are accessible
+
+### Configuration Not Saving
+- Check database permissions  
+- Verify ENiGMA½ user property system is working
+- Check logs for database errors
 
 ## File Structure
 
-The modules follow this structure:
+The enhanced modules follow this structure:
 
 ```
 mods/
@@ -183,13 +366,15 @@ mods/
 │   └── ja_newscan.js                   # Main newscan module
 ├── ja_configure_newscan/               # Configuration module directory
 │   └── ja_configure_newscan.js         # Main configuration module
+├── ja_newscan_msg_list/                # Enhanced message list directory
+│   └── ja_newscan_msg_list.js          # Enhanced message list with auto-advance
 art/
 └── CNEWSCAN.ANS                        # Copy to your theme's art directory
 ```
 
 ### Data Integration
 
-Both modules work together through ENiGMA½'s user property system:
+All modules work together through ENiGMA½'s user property system:
 
 ```javascript
 // Configure module saves user preferences (immediately, on every change)
@@ -198,19 +383,25 @@ this.client.user.persistProperty('NewScanMessageAreaTags', newNewscanTags, callb
 // New scan module reads user preferences
 const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
 
-// New scan respects configured areas when scanning
-if (userSelectedAreas.includes(areaTag)) {
-    // Include this area in the scan
+// Enhanced message list provides visual feedback and auto-advance
+markAllRead() {
+    // Mark messages as read with visual confirmation
+    this.setViewText('allViews', 99, 'All Messages marked as read');
+    // Auto-advance to next area
+    setTimeout(() => { this.prevMenu(); }, 1000);
 }
 ```
-- **If no areas are selected, the newscan module will scan all available areas by default.**
-
-## Usage Notes
-
-- The configuration UI is tightly coupled to the provided ANSI art layout; if you change the art, you may need to adjust the code's column/row settings.
-- Debug logging is available for troubleshooting area selection and persistence.
 
 ## Changelog
+
+### Version 2.0.0 (Enhanced)
+- **NEW**: Enhanced message list module (`ja_newscan_msg_list`) with visual feedback
+- **NEW**: Auto-advance functionality - newscan continues automatically after marking all read  
+- **NEW**: Login sequence integration with configurable prompts
+- **NEW**: Visual "All Messages marked as read" confirmation message
+- **IMPROVED**: Better MCI positioning using `%TL99` for status messages
+- **IMPROVED**: Comprehensive documentation with login integration examples
+- **FIXED**: Proper ENiGMA½ modding conventions with separate module directories
 
 ### Version 1.1.0
 - Improved configuration UI with real-time feedback and toggle-all support (press 'A')
@@ -224,6 +415,15 @@ if (userSelectedAreas.includes(areaTag)) {
 - Configure Newscan module: Interactive area selection
 - Visual indicators for selected areas
 - Persistent storage of user preferences
+
+## Support
+
+These modules follow standard ENiGMA½ patterns and should work with any properly configured ENiGMA½ installation. For issues:
+
+1. Check ENiGMA½ logs for errors
+2. Verify menu configuration syntax
+3. Ensure all required art files exist
+4. Test with a clean user account
 
 ## License
 
