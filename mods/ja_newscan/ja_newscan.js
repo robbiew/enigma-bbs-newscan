@@ -11,10 +11,46 @@ const FileBaseFilters = require('../../core/file_base_filter.js');
 const Errors = require('../../core/enig_error.js').Errors;
 const { getAvailableFileAreaTags } = require('../../core/file_base_area.js');
 const { valueAsArray } = require('../../core/misc_util.js');
+const msgDb = require('../../core/database.js').dbs.message;
 
 //  deps
 const _ = require('lodash');
 const async = require('async');
+
+// Performance optimization cache for newscan
+const newscanCache = {
+    batchResults: new Map(),        // userId -> {results, timestamp}
+    areaAccess: new Map(),          // userId_areaTag -> boolean
+    cacheTimeout: 30000,            // 30 seconds
+
+    // Clear expired cache entries
+    cleanup() {
+        const now = Date.now();
+        for (const [key, value] of this.batchResults.entries()) {
+            if (now - value.timestamp > this.cacheTimeout) {
+                this.batchResults.delete(key);
+            }
+        }
+    },
+
+    // Get cached batch results if still valid
+    getBatchResults(userId) {
+        this.cleanup();
+        const cached = this.batchResults.get(userId);
+        if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+            return cached.results;
+        }
+        return null;
+    },
+
+    // Cache batch results
+    setBatchResults(userId, results) {
+        this.batchResults.set(userId, {
+            results: results,
+            timestamp: Date.now()
+        });
+    }
+};
 
 exports.moduleInfo = {
     name: 'New Scan',
@@ -57,14 +93,107 @@ exports.getModule = class NewScanModule extends MenuModule {
     }
 
     updateScanStatus(statusText) {
-        // Only clear and write up to 77 columns to avoid overwriting the right border
-        const maxWidth = 77;
-        const clearLine = ' '.repeat(maxWidth);
+        // Clear the status area first by padding with spaces
+        const clearLine = ' '.repeat(80); // Use a reasonable line width
         this.setViewText('allViews', MciCodeIds.ScanStatusLabel, clearLine);
         this.setViewText('allViews', MciCodeIds.ScanStatusList, clearLine);
-        // Truncate or pad the status text to maxWidth
-        const safeStatus = (statusText || '').padEnd(maxWidth).slice(0, maxWidth);
-        this.setViewText('allViews', MciCodeIds.ScanStatusLabel, safeStatus);
+        // Then set the new status
+        this.setViewText('allViews', MciCodeIds.ScanStatusLabel, statusText);
+    }
+
+    // Optimized batch function to get new message counts for multiple areas at once
+    // This replaces the N+1 query problem with a single efficient query
+    getBatchNewMessageCountsForUser(userId, areaTags, cb) {
+        if (!Array.isArray(areaTags) || areaTags.length === 0) {
+            return cb(null, {});
+        }
+
+        // Check cache first
+        const cached = newscanCache.getBatchResults(userId);
+        if (cached) {
+            // Filter cached results to only requested areas
+            const filteredResults = {};
+            areaTags.forEach(areaTag => {
+                if (cached[areaTag]) {
+                    filteredResults[areaTag] = cached[areaTag];
+                }
+            });
+            if (Object.keys(filteredResults).length === areaTags.length) {
+                return cb(null, filteredResults);
+            }
+        }
+
+        // Build the optimized batch query using a simpler approach for SQLite
+        const placeholders = areaTags.map(() => '?').join(',');
+
+        const query = `
+            SELECT
+                m.area_tag,
+                COALESCE(lr.message_id, 0) as last_read_id,
+                COUNT(CASE WHEN m.message_id > COALESCE(lr.message_id, 0) THEN 1 END) as new_count
+            FROM (
+                SELECT DISTINCT area_tag FROM message WHERE area_tag IN (${placeholders})
+            ) areas
+            LEFT JOIN message m ON areas.area_tag = m.area_tag
+            LEFT JOIN user_message_area_last_read lr
+                ON LOWER(areas.area_tag) = LOWER(lr.area_tag)
+                AND lr.user_id = ?
+            GROUP BY areas.area_tag, lr.message_id
+            ORDER BY areas.area_tag;
+        `;
+
+        const params = [...areaTags, userId];
+
+        msgDb.all(query, params, (err, rows) => {
+            if (err) {
+                this.client.log.warn({ error: err.message }, 'Batch query failed, falling back to individual queries');
+                // Fallback to individual queries if batch fails
+                return this.fallbackToIndividualQueries(userId, areaTags, cb);
+            }
+
+            // Convert results to a map for easy lookup
+            const results = {};
+            rows.forEach(row => {
+                results[row.area_tag] = {
+                    lastReadId: row.last_read_id,
+                    newCount: row.new_count || 0
+                };
+            });
+
+            // Ensure all requested areas are in the results
+            areaTags.forEach(areaTag => {
+                if (!results[areaTag]) {
+                    results[areaTag] = {
+                        lastReadId: 0,
+                        newCount: 0
+                    };
+                }
+            });
+
+            // Cache the results
+            newscanCache.setBatchResults(userId, results);
+
+            return cb(null, results);
+        });
+    }
+
+    // Fallback method using individual queries (original behavior)
+    fallbackToIndividualQueries(userId, areaTags, cb) {
+        const results = {};
+
+        async.eachLimit(areaTags, 3, (areaTag, nextArea) => {
+            msgArea.getNewMessageCountInAreaForUser(userId, areaTag, (err, count) => {
+                if (!err) {
+                    results[areaTag] = {
+                        lastReadId: 0, // We don't get this from individual queries
+                        newCount: count || 0
+                    };
+                }
+                return nextArea(); // Continue even if one area fails
+            });
+        }, (err) => {
+            return cb(null, results);
+        });
     }
 
     newScanMessageConference(cb) {
@@ -125,7 +254,6 @@ exports.getModule = class NewScanModule extends MenuModule {
         // If user hasn't configured any areas, fall back to scanning all areas
         const useUserSelection = selectedAreaTags.length > 0;
 
-        //  :TODO: it would be nice to cache this - must be done by conf!
         const omitMessageAreaTags = valueAsArray(
             _.get(this, 'menuConfig.config.omitMessageAreaTags', [])
         );
@@ -142,7 +270,6 @@ exports.getModule = class NewScanModule extends MenuModule {
                 return selectedAreaTags.includes(area.areaTag);
             });
 
-            // Log for debugging
             this.client.log.debug(
                 {
                     confTag: conf.confTag,
@@ -153,63 +280,56 @@ exports.getModule = class NewScanModule extends MenuModule {
             );
         }
 
-        const currentArea = sortedAreas[this.currentScanAux.area];
-
-        //
-        //  Scan and update index until we find something. If results are found,
-        //  we'll goto the list module & show them.
-        //
+        // OPTIMIZATION: Use batch processing instead of sequential scanning
         const self = this;
-        async.waterfall(
-            [
-                function checkAndUpdateIndex(callback) {
-                    //  Advance to next area if possible
-                    if (sortedAreas.length >= self.currentScanAux.area + 1) {
-                        self.currentScanAux.area += 1;
-                        return callback(null);
-                    } else {
-                        self.updateScanStatus(self.scanCompleteMsg);
-                        return callback(Errors.DoesNotExist('No more areas')); //  this will stop our scan
+
+        // Extract area tags for batch query
+        const areaTagsToScan = sortedAreas.map(area => area.areaTag);
+
+        if (areaTagsToScan.length === 0) {
+            self.updateScanStatus(self.scanCompleteMsg);
+            return cb(Errors.DoesNotExist('No areas to scan'));
+        }
+
+        // Show initial progress
+        self.updateScanStatus(`Scanning ${areaTagsToScan.length} areas in ${conf.conf.name}...`);
+
+        // Use optimized batch query
+        this.getBatchNewMessageCountsForUser(
+            this.client.user.userId,
+            areaTagsToScan,
+            (err, batchResults) => {
+                if (err) {
+                    self.client.log.error({ error: err.message }, 'Batch scan failed');
+                    return cb(err);
+                }
+
+                // Find first area with new messages
+                let foundArea = null;
+                let foundCount = 0;
+
+                for (const area of sortedAreas) {
+                    const result = batchResults[area.areaTag];
+                    if (result && result.newCount > 0) {
+                        foundArea = area;
+                        foundCount = result.newCount;
+                        break;
                     }
-                },
-                function updateStatusScanStarted(callback) {
+                }
+
+                if (foundArea) {
+                    // Show what we found and launch message list
                     self.updateScanStatus(
-                        stringFormat(self.scanStartFmt, {
+                        stringFormat(self.scanFinishNewFmt, {
+                            count: foundCount,
                             confName: conf.conf.name,
-                            confDesc: conf.conf.desc,
-                            areaName: currentArea.area.name,
-                            areaDesc: currentArea.area.desc,
+                            areaName: foundArea.area.name
                         })
                     );
-                    return callback(null);
-                },
-                function getNewMessagesCountInArea(callback) {
-                    msgArea.getNewMessageCountInAreaForUser(
-                        self.client.user.userId,
-                        currentArea.areaTag,
-                        (err, newMessageCount) => {
-                            callback(err, newMessageCount);
-                        }
-                    );
-                },
-                function displayMessageList(newMessageCount) {
-                    if (newMessageCount <= 0) {
-                        self.updateScanStatus(
-                            stringFormat(self.scanFinishNoneFmt, {
-                                confName: conf.conf.name,
-                                areaName: currentArea.area.name
-                            })
-                        );
-                        // Add a very brief pause before moving to next area
-                        setTimeout(() => {
-                            self.newScanMessageArea(conf, cb);
-                        }, 100); // 0.1 second pause
-                        return;
-                    }
 
                     const nextModuleOpts = {
                         extraArgs: {
-                            messageAreaTag: currentArea.areaTag,
+                            messageAreaTag: foundArea.areaTag,
                         },
                     };
 
@@ -217,10 +337,18 @@ exports.getModule = class NewScanModule extends MenuModule {
                         self.menuConfig.config.messageListMenu || 'newScanMessageList',
                         nextModuleOpts
                     );
-                },
-            ],
-            err => {
-                return cb(err);
+                } else {
+                    // No messages found in any area
+                    const totalAreas = sortedAreas.length;
+                    self.updateScanStatus(
+                        `No new messages in ${totalAreas} area${totalAreas !== 1 ? 's' : ''} in ${conf.conf.name}`
+                    );
+
+                    // Brief pause for user feedback, then continue
+                    setTimeout(() => {
+                        return cb(Errors.DoesNotExist('No more areas'));
+                    }, 500); // Reduced from multiple 100ms delays to single 500ms
+                }
             }
         );
     }
