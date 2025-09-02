@@ -3,6 +3,8 @@
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![ENiGMA½ Version](https://img.shields.io/badge/enigma-1%2F2-brightgreen.svg)](https://github.com/NuSkooler/enigma-bbs)
 
+A collection of three integrated modules that enhance the ENiGMA½ newscan experience with global newscan date support, user configuration, visual feedback, and improved workflow. Features proper newscan date handling that works consistently across all message areas and conferences.
+
 ## Screenshots
 
 <table>
@@ -33,7 +35,6 @@
   </tr>
 </table>
 
-A collection of three integrated modules that enhance the ENiGMA½ newscan experience with global newscan date support, user configuration, visual feedback, and improved workflow. Features proper newscan date handling that works consistently across all message areas and conferences.
 
 ## Features
 
