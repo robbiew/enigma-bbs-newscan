@@ -37,15 +37,13 @@ A collection of three integrated modules that enhance the ENiGMA½ newscan exper
 
 ## Features
 
-- **High Performance**: Optimized core ENiGMA½ function usage ensures proper newscan date handling
 - **Global Newscan Date**: Set a global newscan date that applies to ALL message areas across ALL conferences
 - **Configurable Areas**: Users can select which message areas to include in their newscan
-- **Visual Feedback**: Clear confirmation when marking all messages as read with enhanced status display
+- **Visual Feedback**: Confirmation when marking all messages as read with status display
 - **Auto-Advance**: Automatically continues to next area after marking messages as read
-- **Login Integration**: Optional automatic newscan prompt during login sequence
-- **Newscan Date Respect**: Proper handling of both area-specific and global newscan dates
+- **Login Menu Integration**: Optional automatic newscan prompt during login sequence
 - **Cache Management**: Intelligent cache invalidation when users mark messages as read or change settings
-- **Seamless Integration**: Follows all ENiGMA½ patterns and conventions
+- **ENiGMA½ Integration**: Follows ENiGMA½ patterns and conventions
 
 ## Modules Included
 
@@ -471,97 +469,6 @@ markAllRead() {
     setTimeout(() => { this.prevMenu(); }, 1000);
 }
 ```
-
-## Changelog
-
-### Version 4.0.0 (Global Newscan Date & Fixes)
-- **NEW**: Global newscan date functionality that applies to ALL message areas across ALL conferences
-- **NEW**: Enhanced configure newscan module with global newscan date setting (press 'G')
-- **NEW**: Dual-layer newscan date filtering (area-specific + global)
-- **NEW**: Visual display of current global newscan date in configuration interface
-- **FIXED**: Critical newscan date issue where dates only applied to initially selected areas
-- **FIXED**: Cross-conference newscan date consistency - now works across all conferences
-- **FIXED**: Cache invalidation when users mark messages as read or change settings
-- **FIXED**: Proper integration with core ENiGMA½ newscan date handling
-- **IMPROVED**: Uses core ENiGMA½ functions for proper newscan date respect
-- **IMPROVED**: Enhanced cache management with intelligent invalidation
-- **IMPROVED**: Better error handling and logging for newscan date operations
-- **IMPROVED**: Comprehensive documentation updates with new functionality
-
-### Version 3.0.0 (Performance Optimized)
-- **NEW**: High-performance batch query system for newscan operations
-- **NEW**: Intelligent caching system with 30-second TTL for newscan results
-- **NEW**: Optimized database queries that eliminate N+1 query problems
-- **NEW**: Fallback mechanism for database compatibility across different SQLite versions
-- **NEW**: Enhanced status display with real-time progress feedback
-- **NEW**: Improved error handling and logging throughout all modules
-- **IMPROVED**: Newscan speed increased by up to 90% for large message bases
-- **IMPROVED**: Memory usage optimization through efficient result caching
-- **IMPROVED**: Better visual feedback during scanning operations
-- **IMPROVED**: Enhanced configuration module with precise column positioning
-- **IMPROVED**: Streamlined message list display with optimized rendering
-- **FIXED**: Terminal display artifacts and color bleeding issues
-- **FIXED**: Proper cleanup and cursor management in configuration module
-
-### Version 2.0.0 (Enhanced)
-- **NEW**: Enhanced message list module (`ja_newscan_msg_list`) with visual feedback
-- **NEW**: Auto-advance functionality - newscan continues automatically after marking all read
-- **NEW**: Login sequence integration with configurable prompts
-- **NEW**: Visual "All Messages marked as read" confirmation message
-- **IMPROVED**: Better MCI positioning using `%TL99` for status messages
-- **IMPROVED**: Comprehensive documentation with login integration examples
-- **FIXED**: Proper ENiGMA½ modding conventions with separate module directories
-
-### Version 1.1.0
-- Improved configuration UI with real-time feedback and toggle-all support (press 'A')
-- Skips `system_internal` conference in configuration
-- Immediate persistence of user selections
-- Debug logging for troubleshooting
-
-### Version 1.0.0
-- Initial release
-- New Scan module: Modularized version of ENiGMA's default newscan
-- Configure Newscan module: Interactive area selection
-- Visual indicators for selected areas
-- Persistent storage of user preferences
-
-## Troubleshooting
-
-### Module Not Loading
-- Ensure module files are in correct directories under `mods/`
-- Check ENiGMA½ logs for module loading errors
-- Verify menu configuration syntax is valid HJSON
-
-### Art Display Issues
-- Ensure `%TL99` MCI code is added to NEWMSGS art file
-- Check art file paths in menu configuration
-- Verify art files exist and are accessible
-
-### Configuration Not Saving
-- Check database permissions
-- Verify ENiGMA½ user property system is working
-- Check logs for database errors
-
-### Newscan Date Issues
-- Verify global newscan date is set correctly (press 'G' in configure newscan)
-- Check that `GlobalNewscanDate` user property is being saved
-- Ensure newscan cache is being invalidated after setting dates
-- Use ENiGMA½'s core "Set Newscan Date" module for area-specific dates if needed
-
-### Messages Still Showing Despite Newscan Date
-- Check that both area-specific and global newscan dates are considered
-- Verify message timestamps are valid and parseable
-- Check ENiGMA½ logs for filtering errors
-- Ensure cache invalidation is working when marking messages as read
-
-## Support
-
-These modules follow standard ENiGMA½ patterns and should work with any properly configured ENiGMA½ installation. For issues:
-
-1. Check ENiGMA½ logs for errors
-2. Verify menu configuration syntax
-3. Ensure all required art files exist
-4. Test with a clean user account
 
 ## License
 
