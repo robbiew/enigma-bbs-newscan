@@ -49,6 +49,11 @@ const newscanCache = {
             results: results,
             timestamp: Date.now()
         });
+    },
+
+    // Invalidate cache for a specific user (called when messages are marked as read)
+    invalidateUser(userId) {
+        this.batchResults.delete(userId);
     }
 };
 
@@ -56,6 +61,11 @@ exports.moduleInfo = {
     name: 'New Scan',
     desc: 'Performs a new scan against various areas of the system',
     author: 'NuSkooler',
+};
+
+// Export cache invalidation function for use by other modules
+exports.invalidateUserCache = function (userId) {
+    newscanCache.invalidateUser(userId);
 };
 
 /*
@@ -102,64 +112,43 @@ exports.getModule = class NewScanModule extends MenuModule {
     }
 
     // Optimized batch function to get new message counts for multiple areas at once
-    // This replaces the N+1 query problem with a single efficient query
+    // CRITICAL FIX: Use core ENiGMA½ functions to ensure newscan dates are properly respected
     getBatchNewMessageCountsForUser(userId, areaTags, cb) {
         if (!Array.isArray(areaTags) || areaTags.length === 0) {
             return cb(null, {});
         }
 
-        // Check cache first
-        const cached = newscanCache.getBatchResults(userId);
-        if (cached) {
-            // Filter cached results to only requested areas
-            const filteredResults = {};
-            areaTags.forEach(areaTag => {
-                if (cached[areaTag]) {
-                    filteredResults[areaTag] = cached[areaTag];
+        // CRITICAL FIX: Don't use cache for newscan operations as it can interfere with
+        // newscan date settings and real-time read status updates
+        // The performance benefit isn't worth the complexity of cache invalidation
+
+        // Use the core function for each area to ensure proper newscan date handling
+        // This respects the user_message_area_last_read table which is updated by set newscan date
+        const results = {};
+
+        async.eachLimit(areaTags, 5, (areaTag, nextArea) => {
+            // Use the core function that properly handles newscan dates
+            msgArea.getNewMessageCountInAreaForUser(userId, areaTag, (err, count) => {
+                if (!err) {
+                    results[areaTag] = {
+                        lastReadId: 0, // We don't need this for the newscan logic
+                        newCount: count || 0
+                    };
+                } else {
+                    // Log error but continue with other areas
+                    this.client.log.warn({
+                        error: err.message,
+                        areaTag: areaTag,
+                        userId: userId
+                    }, 'Error getting new message count for area');
+                    results[areaTag] = {
+                        lastReadId: 0,
+                        newCount: 0
+                    };
                 }
+                return nextArea(); // Continue even if one area fails
             });
-            if (Object.keys(filteredResults).length === areaTags.length) {
-                return cb(null, filteredResults);
-            }
-        }
-
-        // Build the optimized batch query using a simpler approach for SQLite
-        const placeholders = areaTags.map(() => '?').join(',');
-
-        const query = `
-            SELECT
-                m.area_tag,
-                COALESCE(lr.message_id, 0) as last_read_id,
-                COUNT(CASE WHEN m.message_id > COALESCE(lr.message_id, 0) THEN 1 END) as new_count
-            FROM (
-                SELECT DISTINCT area_tag FROM message WHERE area_tag IN (${placeholders})
-            ) areas
-            LEFT JOIN message m ON areas.area_tag = m.area_tag
-            LEFT JOIN user_message_area_last_read lr
-                ON LOWER(areas.area_tag) = LOWER(lr.area_tag)
-                AND lr.user_id = ?
-            GROUP BY areas.area_tag, lr.message_id
-            ORDER BY areas.area_tag;
-        `;
-
-        const params = [...areaTags, userId];
-
-        msgDb.all(query, params, (err, rows) => {
-            if (err) {
-                this.client.log.warn({ error: err.message }, 'Batch query failed, falling back to individual queries');
-                // Fallback to individual queries if batch fails
-                return this.fallbackToIndividualQueries(userId, areaTags, cb);
-            }
-
-            // Convert results to a map for easy lookup
-            const results = {};
-            rows.forEach(row => {
-                results[row.area_tag] = {
-                    lastReadId: row.last_read_id,
-                    newCount: row.new_count || 0
-                };
-            });
-
+        }, (err) => {
             // Ensure all requested areas are in the results
             areaTags.forEach(areaTag => {
                 if (!results[areaTag]) {
@@ -170,11 +159,62 @@ exports.getModule = class NewScanModule extends MenuModule {
                 }
             });
 
-            // Cache the results
-            newscanCache.setBatchResults(userId, results);
-
             return cb(null, results);
         });
+    }
+
+    // CRITICAL FIX: Get filtered new messages that respect global newscan date
+    // This method ensures that even if an area doesn't have a specific newscan date set,
+    // it will still respect any global newscan date the user has configured
+    getFilteredNewMessagesForArea(areaTag, cb) {
+        const self = this;
+
+        // First get the standard new messages using core ENiGMA½ logic
+        msgArea.getNewMessagesInAreaForUser(
+            self.client.user.userId,
+            areaTag,
+            (err, newMessages) => {
+                if (err) {
+                    return cb(err);
+                }
+
+                if (!newMessages || newMessages.length === 0) {
+                    return cb(null, []);
+                }
+
+                // Check if user has set a global newscan date
+                const globalNewscanDate = self.client.user.properties['GlobalNewscanDate'];
+                if (!globalNewscanDate) {
+                    // No global newscan date set, return all new messages
+                    return cb(null, newMessages);
+                }
+
+                // Parse the global newscan date
+                const moment = require('moment');
+                const newscanMoment = moment(globalNewscanDate);
+                if (!newscanMoment.isValid()) {
+                    self.client.log.warn({
+                        globalNewscanDate: globalNewscanDate
+                    }, 'Invalid global newscan date format, ignoring');
+                    return cb(null, newMessages);
+                }
+
+                // Filter messages to only include those newer than the global newscan date
+                const filteredMessages = newMessages.filter(msg => {
+                    const msgMoment = moment(msg.modTimestamp);
+                    return msgMoment.isValid() && msgMoment.isSameOrAfter(newscanMoment);
+                });
+
+                self.client.log.debug({
+                    areaTag: areaTag,
+                    totalMessages: newMessages.length,
+                    filteredMessages: filteredMessages.length,
+                    globalNewscanDate: globalNewscanDate
+                }, 'Applied global newscan date filter');
+
+                return cb(null, filteredMessages);
+            }
+        );
     }
 
     // Fallback method using individual queries (original behavior)
@@ -318,7 +358,7 @@ exports.getModule = class NewScanModule extends MenuModule {
                 }
 
                 if (foundArea) {
-                    // Show what we found and launch message list
+                    // Show what we found and get the actual new messages for the area
                     self.updateScanStatus(
                         stringFormat(self.scanFinishNewFmt, {
                             count: foundCount,
@@ -327,15 +367,36 @@ exports.getModule = class NewScanModule extends MenuModule {
                         })
                     );
 
-                    const nextModuleOpts = {
-                        extraArgs: {
-                            messageAreaTag: foundArea.areaTag,
-                        },
-                    };
+                    // CRITICAL FIX: Get the actual new messages to pass to the message list
+                    // This ensures only messages newer than the newscan date are shown
+                    self.getFilteredNewMessagesForArea(
+                        foundArea.areaTag,
+                        (err, newMessages) => {
+                            if (err) {
+                                self.client.log.error({
+                                    error: err.message,
+                                    areaTag: foundArea.areaTag
+                                }, 'Error getting filtered new messages for area');
+                                return cb(err);
+                            }
 
-                    return self.gotoMenu(
-                        self.menuConfig.config.messageListMenu || 'newScanMessageList',
-                        nextModuleOpts
+                            if (!newMessages || newMessages.length === 0) {
+                                // No new messages found, continue to next area
+                                return cb(Errors.DoesNotExist('No new messages'));
+                            }
+
+                            const nextModuleOpts = {
+                                extraArgs: {
+                                    messageAreaTag: foundArea.areaTag,
+                                    messageList: newMessages, // Pass the filtered list of new messages
+                                },
+                            };
+
+                            return self.gotoMenu(
+                                self.menuConfig.config.messageListMenu || 'newScanMessageList',
+                                nextModuleOpts
+                            );
+                        }
                     );
                 } else {
                     // No messages found in any area

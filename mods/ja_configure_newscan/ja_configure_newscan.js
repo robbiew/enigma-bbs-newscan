@@ -44,6 +44,10 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             toggleAllAreas: (formData, extraArgs, cb) => {
                 this.toggleAllAreas();
                 return cb(null);
+            },
+            setGlobalNewscanDate: (formData, extraArgs, cb) => {
+                this.setGlobalNewscanDate(formData, cb);
+                return cb(null);
             }
         };
     }
@@ -149,6 +153,17 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
                     this.client.log.error({ error: err.message }, 'Failed to persist NewScanMessageAreaTags');
                 } else {
                     this.client.log.debug('NewScanMessageAreaTags persisted successfully');
+
+                    // Invalidate newscan cache since user changed their newscan configuration
+                    try {
+                        const newscanModule = require('../ja_newscan/ja_newscan.js');
+                        if (newscanModule && newscanModule.invalidateUserCache) {
+                            newscanModule.invalidateUserCache(this.client.user.userId);
+                        }
+                    } catch (e) {
+                        // Module might not be loaded, that's okay
+                        this.client.log.debug('Could not invalidate newscan cache, module not loaded');
+                    }
                 }
             });
 
@@ -196,6 +211,17 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
                     this.client.log.error({ error: err.message }, 'Failed to persist NewScanMessageAreaTags');
                 } else {
                     this.client.log.debug('NewScanMessageAreaTags toggled for all areas');
+
+                    // Invalidate newscan cache since user changed their newscan configuration
+                    try {
+                        const newscanModule = require('../ja_newscan/ja_newscan.js');
+                        if (newscanModule && newscanModule.invalidateUserCache) {
+                            newscanModule.invalidateUserCache(this.client.user.userId);
+                        }
+                    } catch (e) {
+                        // Module might not be loaded, that's okay
+                        this.client.log.debug('Could not invalidate newscan cache, module not loaded');
+                    }
                 }
             });
 
@@ -228,6 +254,66 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             }
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in toggleAllAreas');
+        }
+    }
+
+    setGlobalNewscanDate(formData, cb) {
+        try {
+            // Get the date from form data (assuming it's in a text input)
+            const dateInput = formData.value.globalNewscanDate || formData.value.scanDate;
+            if (!dateInput) {
+                this.client.term.write('\x1b[4;40H\x1b[31mNo date provided\x1b[0m');
+                return cb(null);
+            }
+
+            const moment = require('moment');
+            // Try multiple date formats
+            const formats = ['YYYYMMDD', 'YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY'];
+            let scanDate = null;
+
+            for (const format of formats) {
+                scanDate = moment(dateInput, format, true);
+                if (scanDate.isValid()) {
+                    break;
+                }
+            }
+
+            if (!scanDate || !scanDate.isValid()) {
+                this.client.term.write('\x1b[4;40H\x1b[31mInvalid date format\x1b[0m');
+                return cb(null);
+            }
+
+            // Store the global newscan date as a user property
+            this.client.user.persistProperty('GlobalNewscanDate', scanDate.toISOString(), (err) => {
+                if (err) {
+                    this.client.log.error({ error: err.message }, 'Failed to persist GlobalNewscanDate');
+                    this.client.term.write('\x1b[4;40H\x1b[31mFailed to save date\x1b[0m');
+                } else {
+                    this.client.log.info({
+                        scanDate: scanDate.format('YYYY-MM-DD'),
+                        userId: this.client.user.userId
+                    }, 'Global newscan date set');
+
+                    // Show success message
+                    this.client.term.write(`\x1b[4;40H\x1b[32mGlobal newscan date set to ${scanDate.format('YYYY-MM-DD')}\x1b[0m`);
+
+                    // Invalidate newscan cache since user changed their newscan date
+                    try {
+                        const newscanModule = require('../ja_newscan/ja_newscan.js');
+                        if (newscanModule && newscanModule.invalidateUserCache) {
+                            newscanModule.invalidateUserCache(this.client.user.userId);
+                        }
+                    } catch (e) {
+                        // Module might not be loaded, that's okay
+                        this.client.log.debug('Could not invalidate newscan cache, module not loaded');
+                    }
+                }
+                return cb(null);
+            });
+        } catch (error) {
+            this.client.log.error({ error: error.message }, 'Error in setGlobalNewscanDate');
+            this.client.term.write('\x1b[4;40H\x1b[31mError setting date\x1b[0m');
+            return cb(null);
         }
     }
 
@@ -332,16 +418,31 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
         try {
             const newscanTags = this.client.user.properties['NewScanMessageAreaTags'] || '';
             const newscanArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
+
             // Update status in top area (single line only), up to 35 columns at col 40
             const startRow = 3;
             const startCol = 40;
             const width = 35;
             let statusMsg = `Selected ${newscanArray.length} of ${this.availableAreas.length} areas for newscan`;
             statusMsg = statusMsg.padEnd(width).slice(0, width);
+
             // Clear only the status area, then write the message (no \x1b[K)
             clearStatusArea(this.client.term, startRow, startCol, width);
             if (statusMsg.trim().length > 0) {
                 this.client.term.write(`\x1b[${startRow};${startCol}H\x1b[32m${statusMsg}\x1b[0m`);
+            }
+
+            // Show global newscan date if set
+            const globalNewscanDate = this.client.user.properties['GlobalNewscanDate'];
+            if (globalNewscanDate) {
+                const moment = require('moment');
+                const dateMoment = moment(globalNewscanDate);
+                if (dateMoment.isValid()) {
+                    const dateRow = 2;
+                    const dateMsg = `Global newscan date: ${dateMoment.format('YYYY-MM-DD')}`;
+                    clearStatusArea(this.client.term, dateRow, startCol, width);
+                    this.client.term.write(`\x1b[${dateRow};${startCol}H\x1b[36m${dateMsg.padEnd(width).slice(0, width)}\x1b[0m`);
+                }
             }
         } catch (error) {
             this.client.log.error({ error: error.message }, 'Error in updateStatus');

@@ -477,6 +477,18 @@ exports.getModule = class NewscanMessageListModule extends (
                 );
             },
             () => {
+                // CRITICAL FIX: Invalidate newscan cache after marking messages as read
+                // This ensures subsequent newscan operations see the updated read status
+                try {
+                    // Try to access the newscan cache if the module is loaded
+                    const newscanModule = require('../ja_newscan/ja_newscan.js');
+                    if (newscanModule && newscanModule.invalidateUserCache) {
+                        newscanModule.invalidateUserCache(this.client.user.userId);
+                    }
+                } catch (e) {
+                    // Module might not be loaded, that's okay
+                    this.client.log.debug('Could not invalidate newscan cache, module not loaded');
+                }
                 return cb(null);
             }
         );

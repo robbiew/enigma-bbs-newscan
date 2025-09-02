@@ -5,17 +5,18 @@
 
 ![Newscan Configuration Screenshot](assets/screenshot_git.png)
 
-A collection of three integrated modules that enhance the ENiGMA½ newscan experience with high-performance optimizations, user configuration, visual feedback, and improved workflow. Features advanced batch query processing and intelligent caching for significantly faster newscan operations.
+A collection of three integrated modules that enhance the ENiGMA½ newscan experience with global newscan date support, user configuration, visual feedback, and improved workflow. Features proper newscan date handling that works consistently across all message areas and conferences.
 
 ## Features
 
-- **High Performance**: Optimized batch queries provide up to 90% speed improvement
-- **Intelligent Caching**: 30-second result caching eliminates redundant database operations
+- **High Performance**: Optimized core ENiGMA½ function usage ensures proper newscan date handling
+- **Global Newscan Date**: Set a global newscan date that applies to ALL message areas across ALL conferences
 - **Configurable Areas**: Users can select which message areas to include in their newscan
 - **Visual Feedback**: Clear confirmation when marking all messages as read with enhanced status display
 - **Auto-Advance**: Automatically continues to next area after marking messages as read
 - **Login Integration**: Optional automatic newscan prompt during login sequence
-- **Database Compatibility**: Fallback mechanisms ensure compatibility across SQLite versions
+- **Newscan Date Respect**: Proper handling of both area-specific and global newscan dates
+- **Cache Management**: Intelligent cache invalidation when users mark messages as read or change settings
 - **Seamless Integration**: Follows all ENiGMA½ patterns and conventions
 
 ## Modules Included
@@ -117,6 +118,10 @@ Add these menu entries to your message base menu configuration file (e.g., `conf
             {
               "keys": ["a", "shift + a"],
               "action": "@method:toggleAllAreas"
+            },
+            {
+              "keys": ["g", "shift + g"],
+              "action": "@method:setGlobalNewscanDate"
             }
           ]
         }
@@ -310,6 +315,7 @@ You may want to create or customize these art files:
    - Use arrow keys to navigate areas
    - Press Enter to toggle area selection
    - Press `A` to toggle all areas
+   - Press `G` to set global newscan date (applies to all areas)
    - Press Escape when done
 
 ### Key Bindings
@@ -318,6 +324,7 @@ You may want to create or customize these art files:
 - `↑/↓` - Navigate areas
 - `Enter` - Toggle area selection
 - `A` - Toggle all areas
+- `G` - Set global newscan date
 - `Escape` - Done/Exit
 
 **Newscan Message List:**
@@ -329,34 +336,30 @@ You may want to create or customize these art files:
 
 ## Technical Details
 
-### Performance Optimizations
-The enhanced newscan system includes several performance improvements:
+### Newscan Date Handling
+The enhanced newscan system provides comprehensive newscan date support:
 
-- **Batch Query System**: Replaces individual area queries with a single optimized SQL query
-- **Intelligent Caching**: Results are cached for 30 seconds to avoid redundant database operations
-- **Fallback Compatibility**: Automatic fallback to individual queries if batch operations fail
-- **Memory Optimization**: Efficient cache cleanup and result filtering
+- **Core ENiGMA½ Integration**: Uses [`msgArea.getNewMessageCountInAreaForUser()`](https://github.com/NuSkooler/enigma-bbs/blob/master/core/message_area.js#L515) and [`msgArea.getNewMessagesInAreaForUser()`](https://github.com/NuSkooler/enigma-bbs/blob/master/core/message_area.js#L565) for proper newscan date handling
+- **Global Newscan Date**: Additional filtering layer that applies a global date across all areas and conferences
+- **Dual-Layer Filtering**: Respects both area-specific newscan dates (set via core ENiGMA½) and global newscan dates
+- **Cache Invalidation**: Intelligent cache management when users mark messages as read or change settings
 
-### Database Query Optimization
-```sql
--- Optimized batch query for multiple areas
-SELECT
-    m.area_tag,
-    COALESCE(lr.message_id, 0) as last_read_id,
-    COUNT(CASE WHEN m.message_id > COALESCE(lr.message_id, 0) THEN 1 END) as new_count
-FROM (
-    SELECT DISTINCT area_tag FROM message WHERE area_tag IN (?, ?, ...)
-) areas
-LEFT JOIN message m ON areas.area_tag = m.area_tag
-LEFT JOIN user_message_area_last_read lr
-    ON LOWER(areas.area_tag) = LOWER(lr.area_tag)
-    AND lr.user_id = ?
-GROUP BY areas.area_tag, lr.message_id
-ORDER BY areas.area_tag;
+### Global Newscan Date System
+```javascript
+// Global newscan date filtering in getFilteredNewMessagesForArea()
+const globalNewscanDate = self.client.user.properties['GlobalNewscanDate'];
+if (globalNewscanDate) {
+    const newscanMoment = moment(globalNewscanDate);
+    const filteredMessages = newMessages.filter(msg => {
+        const msgMoment = moment(msg.modTimestamp);
+        return msgMoment.isValid() && msgMoment.isSameOrAfter(newscanMoment);
+    });
+}
 ```
 
 ### Data Storage
-User area selections are stored in the `NewScanMessageAreaTags` user property as a comma-separated string of area tags.
+- User area selections are stored in the `NewScanMessageAreaTags` user property as a comma-separated string of area tags
+- Global newscan date is stored in the `GlobalNewscanDate` user property as an ISO 8601 timestamp
 
 ### Module Dependencies
 - All modules use only ENiGMA½ core APIs
@@ -369,21 +372,23 @@ User area selections are stored in the `NewScanMessageAreaTags` user property as
 - Only shows areas users have access to
 - Maintains security boundaries
 
-### Caching System
+### Cache Management System
 ```javascript
 const newscanCache = {
     batchResults: new Map(),        // userId -> {results, timestamp}
     areaAccess: new Map(),          // userId_areaTag -> boolean
     cacheTimeout: 30000,            // 30 seconds
     
-    getBatchResults(userId) {
-        // Returns cached results if still valid
-    },
-    
-    setBatchResults(userId, results) {
-        // Caches results with timestamp
+    invalidateUser(userId) {
+        // Invalidates cache when user marks messages as read or changes settings
+        this.batchResults.delete(userId);
     }
 };
+
+// Cache invalidation is triggered by:
+// - Marking messages as read (ja_newscan_msg_list)
+// - Changing newscan area configuration (ja_configure_newscan)
+// - Setting global newscan date (ja_configure_newscan)
 ```
 
 ## Troubleshooting
@@ -441,6 +446,20 @@ markAllRead() {
 
 ## Changelog
 
+### Version 4.0.0 (Global Newscan Date & Fixes)
+- **NEW**: Global newscan date functionality that applies to ALL message areas across ALL conferences
+- **NEW**: Enhanced configure newscan module with global newscan date setting (press 'G')
+- **NEW**: Dual-layer newscan date filtering (area-specific + global)
+- **NEW**: Visual display of current global newscan date in configuration interface
+- **FIXED**: Critical newscan date issue where dates only applied to initially selected areas
+- **FIXED**: Cross-conference newscan date consistency - now works across all conferences
+- **FIXED**: Cache invalidation when users mark messages as read or change settings
+- **FIXED**: Proper integration with core ENiGMA½ newscan date handling
+- **IMPROVED**: Uses core ENiGMA½ functions for proper newscan date respect
+- **IMPROVED**: Enhanced cache management with intelligent invalidation
+- **IMPROVED**: Better error handling and logging for newscan date operations
+- **IMPROVED**: Comprehensive documentation updates with new functionality
+
 ### Version 3.0.0 (Performance Optimized)
 - **NEW**: High-performance batch query system for newscan operations
 - **NEW**: Intelligent caching system with 30-second TTL for newscan results
@@ -477,6 +496,35 @@ markAllRead() {
 - Configure Newscan module: Interactive area selection
 - Visual indicators for selected areas
 - Persistent storage of user preferences
+
+## Troubleshooting
+
+### Module Not Loading
+- Ensure module files are in correct directories under `mods/`
+- Check ENiGMA½ logs for module loading errors
+- Verify menu configuration syntax is valid HJSON
+
+### Art Display Issues
+- Ensure `%TL99` MCI code is added to NEWMSGS art file
+- Check art file paths in menu configuration
+- Verify art files exist and are accessible
+
+### Configuration Not Saving
+- Check database permissions
+- Verify ENiGMA½ user property system is working
+- Check logs for database errors
+
+### Newscan Date Issues
+- Verify global newscan date is set correctly (press 'G' in configure newscan)
+- Check that `GlobalNewscanDate` user property is being saved
+- Ensure newscan cache is being invalidated after setting dates
+- Use ENiGMA½'s core "Set Newscan Date" module for area-specific dates if needed
+
+### Messages Still Showing Despite Newscan Date
+- Check that both area-specific and global newscan dates are considered
+- Verify message timestamps are valid and parseable
+- Check ENiGMA½ logs for filtering errors
+- Ensure cache invalidation is working when marking messages as read
 
 ## Support
 
