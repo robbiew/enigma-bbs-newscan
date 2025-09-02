@@ -3,7 +3,35 @@
 [![License](https://img.shields.io/badge/license-BSD--2--Clause-blue.svg)](LICENSE)
 [![ENiGMA½ Version](https://img.shields.io/badge/enigma-1%2F2-brightgreen.svg)](https://github.com/NuSkooler/enigma-bbs)
 
-![Newscan Configuration Screenshot](assets/screenshot_git.png)
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/ja_newscan.png" alt="Enhanced Newscan in Action" width="400"/>
+      <br/>
+      <strong>Enhanced Newscan</strong>
+      <br/>
+      <em>Fast scanning with user-selected areas</em>
+    </td>
+    <td align="center">
+      <img src="assets/ja_set_scan_areas.png" alt="Configure Newscan Areas" width="400"/>
+      <br/>
+      <strong>Configure Areas</strong>
+      <br/>
+      <em>Select which areas to scan</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="assets/ja_set_date.png" alt="Set Global Newscan Date" width="400"/>
+      <br/>
+      <strong>Global Newscan Date</strong>
+      <br/>
+      <em>Set date that applies to all areas</em>
+    </td>
+  </tr>
+</table>
 
 A collection of three integrated modules that enhance the ENiGMA½ newscan experience with global newscan date support, user configuration, visual feedback, and improved workflow. Features proper newscan date handling that works consistently across all message areas and conferences.
 
