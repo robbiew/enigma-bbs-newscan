@@ -3,7 +3,6 @@
 
 // ENiGMA½
 const MenuModule = require('../../core/menu_module.js').MenuModule;
-const ViewController = require('../../core/view_controller.js').ViewController;
 const messageArea = require('../../core/message_area.js');
 
 // deps
@@ -133,15 +132,12 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
             let areaTagsArray = newscanTags.length > 0 ? newscanTags.split(',') : [];
 
             const areaIndex = areaTagsArray.indexOf(area.areaTag);
-            let isNowSelected;
             if (areaIndex === -1) {
                 // Add to newscan
                 areaTagsArray.push(area.areaTag);
-                isNowSelected = true;
             } else {
                 // Remove from newscan
                 areaTagsArray.splice(areaIndex, 1);
-                isNowSelected = false;
             }
 
             // Save the updated newscan tags to memory
@@ -372,7 +368,7 @@ exports.getModule = class ConfigureNewscanModule extends MenuModule {
                 areaName: { start: 15, width: 48 }
             };
 
-            this.availableAreas.forEach((area, index) => {
+            this.availableAreas.forEach((area) => {
                 const isSelected = newscanArray.includes(area.areaTag);
 
                 // Create a fixed-width string buffer

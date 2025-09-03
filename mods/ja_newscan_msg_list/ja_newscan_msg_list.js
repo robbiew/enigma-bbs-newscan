@@ -18,11 +18,11 @@ const moment = require('moment');
 
 /*
     Custom Message List Module for Newscan
-    
+
     This module extends the core msg_list functionality but overrides
     the markAllRead method to provide visual feedback and automatically
     advance to the next newscan area.
-    
+
     Available itemFormat/focusItemFormat members for |msgList|
 
     msgNum          : Message number

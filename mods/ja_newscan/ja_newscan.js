@@ -11,7 +11,6 @@ const FileBaseFilters = require('../../core/file_base_filter.js');
 const Errors = require('../../core/enig_error.js').Errors;
 const { getAvailableFileAreaTags } = require('../../core/file_base_area.js');
 const { valueAsArray } = require('../../core/misc_util.js');
-const msgDb = require('../../core/database.js').dbs.message;
 
 //  deps
 const _ = require('lodash');
@@ -148,7 +147,7 @@ exports.getModule = class NewScanModule extends MenuModule {
                 }
                 return nextArea(); // Continue even if one area fails
             });
-        }, (err) => {
+        }, () => {
             // Ensure all requested areas are in the results
             areaTags.forEach(areaTag => {
                 if (!results[areaTag]) {
@@ -231,7 +230,7 @@ exports.getModule = class NewScanModule extends MenuModule {
                 }
                 return nextArea(); // Continue even if one area fails
             });
-        }, (err) => {
+        }, () => {
             return cb(null, results);
         });
     }
